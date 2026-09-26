@@ -1,0 +1,20 @@
+<!doctype html>
+<html lang="ja"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>管理画面</title><style>
+body{font-family:-apple-system,BlinkMacSystemFont,"Yu Gothic",sans-serif;background:#f3f5f8;margin:0;color:#172033}
+main{max-width:1000px;margin:30px auto;padding:0 16px}.box{background:white;border-radius:16px;padding:20px;box-shadow:0 3px 18px #0001;margin-bottom:16px}
+input,button{font:inherit;padding:11px;border-radius:9px;border:1px solid #ccd3df}button{cursor:pointer;background:#172033;color:white;border:0}
+table{width:100%;border-collapse:collapse}th,td{text-align:left;padding:10px;border-bottom:1px solid #e5e7eb;font-size:14px;vertical-align:top}.danger{background:#b42318}.muted{color:#667085;font-size:13px}
+</style></head><body><main>
+<div class="box"><h1>応援メッセージ 管理画面</h1><div id="login">
+<p class="muted">管理パスワードを入力してください。</p><input id="pw" type="password" placeholder="管理パスワード"><button id="loginBtn">ログイン</button><p id="loginMsg"></p>
+</div><div id="app" style="display:none"><p><button id="refresh">更新</button>　<span id="info"></span></p><div style="overflow:auto"><table><thead><tr><th>日時</th><th>X ID</th><th>曲</th><th>メッセージ</th><th>状態</th><th></th></tr></thead><tbody id="rows"></tbody></table></div></div>
+</div></main><script>
+let token='';
+async function api(path,opt={}){opt.headers={...(opt.headers||{}),'content-type':'application/json','authorization':'Bearer '+token};const r=await fetch(path,opt);const d=await r.json();if(!r.ok)throw new Error(d.error||'エラー');return d}
+document.querySelector('#loginBtn').onclick=async()=>{try{const d=await api('/api/admin/login',{method:'POST',body:JSON.stringify({password:document.querySelector('#pw').value})});token=d.token;document.querySelector('#login').style.display='none';document.querySelector('#app').style.display='block';load()}catch(e){document.querySelector('#loginMsg').textContent=e.message}}
+async function load(){try{const d=await api('/api/admin/supports');document.querySelector('#info').textContent='全 '+d.items.length+' 件';document.querySelector('#rows').innerHTML=d.items.map(x=>`<tr><td>${new Date(x.created_at).toLocaleString('ja-JP')}</td><td>@${escapeHtml(x.x_id)}</td><td>${escapeHtml(x.song)}</td><td>${escapeHtml(x.message)}</td><td>${x.deleted_at?'削除済み':(Date.parse(x.created_at)+1800000>Date.now()?'公開待ち':'公開対象')}</td><td>${x.deleted_at?'':`<button class="danger" onclick="del('${x.id}')">削除</button>`}</td></tr>`).join('')}catch(e){alert(e.message)}}
+function escapeHtml(s){return String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
+async function del(id){if(!confirm('この投稿を削除しますか？'))return;try{await api('/api/admin/delete',{method:'POST',body:JSON.stringify({id})});load()}catch(e){alert(e.message)}}
+document.querySelector('#refresh').onclick=load;
+</script></body></html>
