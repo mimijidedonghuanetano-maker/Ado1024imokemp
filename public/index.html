@@ -1,0 +1,105 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Ado 応援メッセージ</title>
+<style>
+*{box-sizing:border-box}html,body{margin:0;min-height:100%;font-family:-apple-system,BlinkMacSystemFont,"Hiragino Sans","Yu Gothic",sans-serif;background:#071426;color:#fff}
+body{overflow-x:hidden}
+header{position:fixed;z-index:10;top:0;left:0;right:0;padding:18px;text-align:center;background:linear-gradient(#071426ee,#071426aa,transparent)}
+h1{font-size:clamp(24px,6vw,42px);margin:4px 0 8px}
+#count{font-size:15px;opacity:.9}.countnum{font-size:25px;font-weight:800}
+#wall{position:fixed;inset:0;overflow:hidden;pointer-events:none}
+.card{position:absolute;max-width:min(340px,72vw);padding:13px 16px;border-radius:18px;background:rgba(255,255,255,.94);color:#111827;box-shadow:0 8px 30px #0005;animation:float 12s linear forwards;pointer-events:auto}
+.card .id{font-size:12px;font-weight:800;color:#405070;margin-bottom:5px}
+.card .msg{font-size:15px;line-height:1.5;word-break:break-word}
+@keyframes float{0%{transform:translate(0,105vh) rotate(var(--r));opacity:0}10%{opacity:1}90%{opacity:1}100%{transform:translate(var(--dx),-30vh) rotate(var(--r));opacity:0}}
+main{position:relative;z-index:2;min-height:100vh;display:flex;align-items:flex-end;justify-content:center;padding:0 18px 30px;pointer-events:none}
+button{border:0;cursor:pointer;font-weight:800}
+#openBtn{pointer-events:auto;padding:18px 48px;border-radius:999px;background:#fff;color:#071426;font-size:19px;box-shadow:0 10px 30px #0006}
+#modal{display:none;position:fixed;z-index:30;inset:0;background:#0009;align-items:center;justify-content:center;padding:18px}
+.panel{width:min(520px,100%);background:#fff;color:#111827;border-radius:22px;padding:24px}
+.panel h2{margin:0 0 18px}.field{margin:13px 0}.field label{display:block;font-weight:700;font-size:13px;margin-bottom:6px}
+input,select,textarea{width:100%;padding:12px;border:1px solid #ccd3df;border-radius:10px;font:inherit}
+textarea{resize:vertical;min-height:100px}#chars{font-size:12px;text-align:right;color:#667085}
+.actions{display:flex;gap:10px;margin-top:16px}.actions button{flex:1;padding:13px;border-radius:11px}
+.submit{width:100%;padding:15px;border-radius:11px;font-size:16px;margin-top:4px}
+.cancel{background:#e9edf3}.submit{background:#071426;color:white}
+.note{font-size:12px;color:#667085;line-height:1.5;margin-top:12px}
+#status{margin-top:12px;font-size:13px;min-height:20px}
+</style>
+</head>
+<body>
+<header>
+<h1>Adoを応援しています</h1>
+<div id="count"><span class="countnum">0</span>人の人が応援しています</div>
+</header>
+<div id="wall"></div>
+<main><button id="openBtn">応援する</button></main>
+
+<div id="modal">
+<div class="panel">
+<h2>応援メッセージ</h2>
+<form id="form">
+<div class="field"><label for="xid">X ID</label><input id="xid" maxlength="50" placeholder="@example" required></div>
+<div class="field"><label for="song">好きなAdoの曲（歌ってみた等もOK）</label>
+<input id="song" type="text" maxlength="100" placeholder="例：うっせぇわ" required>
+</div>
+<div class="field"><label for="message">一言メッセージ（50文字以内）</label><textarea id="message" maxlength="50" required></textarea><div id="chars">0 / 50</div></div>
+<button type="submit" class="submit">送信する</button>
+<div id="status"></div>
+<div class="note">送信した内容は運営が確認でき、メッセージは送信から約30分後に公開対象になります。X IDとメッセージは公開表示されます。</div>
+<div id="promo" style="display:none;margin-top:14px">
+<a id="promoBtn" href="https://stellar-granita-bbee19.netlify.app/" target="_blank" rel="noopener noreferrer" style="display:block;text-align:center;padding:13px;border-radius:11px;background:#071426;color:#fff;text-decoration:none;font-weight:800">🌟 自己紹介カードもみてね</a>
+</div>
+</form>
+<div class="actions"><button class="cancel" type="button" id="closeBtn">閉じる</button></div>
+</div>
+</div>
+
+<script>
+const wall=document.querySelector('#wall'), modal=document.querySelector('#modal'), form=document.querySelector('#form');
+const countEl=document.querySelector('.countnum'), statusEl=document.querySelector('#status');
+let messages=[], cursor=0;
+
+async function loadCount(){
+ try{const r=await fetch('/api/count'); const d=await r.json(); countEl.textContent=d.count??0;}catch{}
+}
+async function loadMessages(){
+ try{const r=await fetch('/api/messages'); const d=await r.json(); messages=d.messages||[];}catch{}
+}
+function spawn(){
+ if(!messages.length)return;
+ const m=messages[cursor++%messages.length], el=document.createElement('div');
+ el.className='card'; el.style.left=(Math.random()*82+5)+'vw'; el.style.setProperty('--dx',(Math.random()*180-90)+'px');
+ el.style.setProperty('--r',(Math.random()*12-6)+'deg'); el.style.animationDuration=(10+Math.random()*8)+'s';
+ el.innerHTML='<div class="id"></div><div class="msg"></div>';
+ el.querySelector('.id').textContent='@'+String(m.x_id||'').replace(/^@/,'');
+ el.querySelector('.msg').textContent=m.message||'';
+ wall.appendChild(el); setTimeout(()=>el.remove(),20000);
+}
+async function refresh(){await Promise.all([loadCount(),loadMessages()]);}
+const promoEl=document.querySelector('#promo');
+document.querySelector('#openBtn').onclick=()=>{modal.style.display='flex';promoEl.style.display='none';};
+document.querySelector('#closeBtn').onclick=()=>{modal.style.display='none';};
+document.querySelector('#message').oninput=e=>document.querySelector('#chars').textContent=e.target.value.length+' / 50';
+form.onsubmit=async e=>{
+ e.preventDefault(); statusEl.textContent='送信中…'; promoEl.style.display='none';
+ const payload={x_id:document.querySelector('#xid').value.trim(),song:document.querySelector('#song').value,message:document.querySelector('#message').value.trim()};
+ try{
+  const r=await fetch('/api/submit',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify(payload)});
+  const d=await r.json();
+  if(!r.ok) throw new Error(d.error||'送信に失敗しました');
+  statusEl.textContent='送信しました。応援者数に反映されています。';
+  form.reset(); document.querySelector('#chars').textContent='0 / 50'; await loadCount();
+  promoEl.style.display='block';
+ }catch(err){statusEl.textContent=err.message;}
+};
+refresh();
+setInterval(refresh,60000);
+setInterval(spawn,1200);
+for(let i=0;i<8;i++)setTimeout(spawn,i*500);
+</script>
+</body>
+</html>
